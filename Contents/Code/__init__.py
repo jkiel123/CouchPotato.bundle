@@ -323,12 +323,12 @@ def AddMovieMenu(sender, id, year, url="", youtubeID=None, provider=""):
     dir = MediaContainer()
     dir.Append(Function(DirectoryItem(AddMovie, title='Add to Wanted list'), id=id, year=year))
     dir.Append(Function(DirectoryItem(QualitySelectMenu, title='Select quality to add'), id=id, year=year))
-    if url != "":
-        dir.Append(Function(DirectoryItem(TrailerMenu, title='Watch A Trailer'), url=url, provider=provider))
-    elif youtubeID:
-        dir.Append(Function(DirectoryItem(TrailerMenu, title='Watch A Trailer'), youtubeID=youtubeID, provider=provider))
-    else:
-        pass
+    #if url != "":
+    #    dir.Append(Function(DirectoryItem(TrailerMenu, title='Watch A Trailer'), url=url, provider=provider))
+    #elif youtubeID:
+    #    dir.Append(Function(DirectoryItem(TrailerMenu, title='Watch A Trailer'), youtubeID=youtubeID, provider=provider))
+    #else:
+    #    pass
     return dir
 
 ################################################################################
@@ -365,27 +365,30 @@ def ComingToTheatres(sender):
     for comingMovie in comingSoonPage.xpath('//h3'):
         link = comingMovie.xpath('./a')[0].get('href')
         movieName = comingMovie.xpath('./a')[0].text
-        #Log('Found - Coming Soon: '+movieName+' : '+ link)
-        try: posterUrl = HTML.ElementFromURL(link,errors='ignore').xpath('//img[@id="poster"]')[0].get('src')
-        except: posterUrl = 'http://hwcdn.themoviedb.org/images/no-poster.jpg'
         movieInfoPage = HTML.ElementFromURL(link, errors='ignore')
-        movieReleaseDate = movieInfoPage.xpath('//table[@id="profileData"]/tr/td/a')[0].text
-        movieYear = movieInfoPage.xpath('//table[@id="profileData"]/tr/td/a')[1].text
         try:
-            movieOverview = movieInfoPage.xpath('//div[@id="synopsis"]/span')[0].text
+            movieTagLine = movieInfoPage.xpath('//p[@id="tagline"]')[0].text
+            Log(movieTagLine)
+        except:
+            movieTagLine = ''
+        movieYear = movieInfoPage.xpath('//table[@id="profileData"]/tr/td/a')[1].text
+        Log(movieYear)
+        try:
+            movieOverview = movieInfoPage.xpath('//div[@id="synopsis"]/text()')[0]
+            Log(movieOverview)
         except:
             movieOverview = ''
         try:
             imdbLink = movieInfoPage.xpath('//div[@id="relatedLinks"]/ul/li/a')[0].get('href')
             imdbID = str(imdbLink)[26:-1]
+            Log(imdbID)
         except:
             continue
-        #Log('imdbID: ' + imdbID)
         dir.Append(Function(PopupDirectoryItem(AddMovieMenu,
                 title=(movieName+' ('+movieYear+')'),
-                subtitle=('Coming: '+movieReleaseDate+', '+movieYear),
+                subtitle=movieTagLine,
                 summary = movieOverview,
-                thumb = Function(GetThumb, url=posterUrl)),
+                thumb = Function(GetThumb, link=link)),
             id=imdbID, year=movieYear, url=link, provider="MovieInsider"))
         
     return dir
@@ -401,21 +404,15 @@ def ComingToBluray(sender):
     for comingMovie in comingSoonPage.xpath('//h3'):
         link = comingMovie.xpath('./a')[0].get('href')
         movieName = comingMovie.xpath('./a')[0].text
-        #Log('Found - Coming Soon: '+movieName+' : '+ link)
-        try: posterUrl = HTML.ElementFromURL(link,errors='ignore').xpath('//img[@id="poster"]')[0].get('src')
-        except: posterUrl = 'http://hwcdn.themoviedb.org/images/no-poster.jpg'
         movieInfoPage = HTML.ElementFromURL(link,errors='ignore')
         try:
-            BDReleaseDate = movieInfoPage.xpath('//table[@id="profileData"]/tr[2]/td/a')[0].text
+            movieTagLine = movieInfoPage.xpath('//p[@id="tagline"]')[0].text
+            Log(movieTagLine)
         except:
-            BDReleaseDate = ""    
-        try:
-            BDReleaseYear = movieInfoPage.xpath('//table[@id="profileData"]/tr[2]/td/a')[1].text
-        except:
-            BDReleaseYear = ""
+            movieTagLine = ''
         movieYear = movieInfoPage.xpath('//table[@id="profileData"]/tr/td/a')[1].text
         try:
-            movieOverview = movieInfoPage.xpath('//div[@id="synopsis"]/span')[0].text
+            movieOverview = movieInfoPage.xpath('//div[@id="synopsis"]/text()')[0]
         except:
             movieOverview = ""
         try:
@@ -423,12 +420,11 @@ def ComingToBluray(sender):
             imdbID = str(imdbLink)[26:-1]
         except:
             continue
-        #Log('imdbID: ' + imdbID)
         dir.Append(Function(PopupDirectoryItem(AddMovieMenu,
                 title=(movieName+' ('+movieYear+')'),
-                subtitle=('Coming: '+BDReleaseDate+', '+BDReleaseYear),
+                subtitle=movieTagLine,
                 summary = movieOverview,
-                thumb = Function(GetThumb, url=posterUrl)),
+                thumb = Function(GetThumb, link=link)),
             id=imdbID, year=movieYear, url=link, provider="MovieInsider"))
         
     return dir
@@ -546,8 +542,13 @@ def YtPlayVideo(sender, video_id):
 
 ################################################################################
 
-def GetThumb(url):
+def GetThumb(url=None, link=None):
     '''A function to return thumbs.'''
+    if link:
+        try: url = HTML.ElementFromURL(link,errors='ignore').xpath('//img[@id="poster"]')[0].get('src')
+        except: url = 'http://hwcdn.themoviedb.org/images/no-poster.jpg'
+    else:
+        pass
     try:
         data = HTTP.Request(url, cacheTime=CACHE_1MONTH)
         return DataObject(data, 'image/jpeg')
